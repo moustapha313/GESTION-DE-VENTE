@@ -7,10 +7,32 @@
     <meta name="description" content="Gestion des ventes, produits et stocks d'Ideal Cosmetique." />
     <title>Ideal Cosmetique | Gestion</title>
     <link rel="stylesheet" href="styles.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="supabase-config.js"></script>
     <script src="app.js" defer></script>
   </head>
   <body>
-    <div class="app-shell">
+    <section class="auth-screen" id="auth-screen" hidden>
+      <div class="auth-card">
+        <a class="brand auth-brand" href="#" aria-label="Ideal Cosmetique">
+          <span class="brand-mark">I<span>c</span></span>
+          <span class="brand-copy"><strong>ideal</strong><small>COSMETIQUE</small></span>
+        </a>
+        <p class="eyebrow">ESPACE SÉCURISÉ</p>
+        <h1>Connexion à la boutique</h1>
+        <p class="auth-description">Connectez-vous pour retrouver les données de votre boutique sur vos appareils.</p>
+        <p class="auth-message" id="auth-message" role="status"></p>
+        <form class="auth-form" id="auth-form" hidden>
+          <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="email" required /></label>
+          <label class="field"><span>Mot de passe</span><input name="password" type="password" autocomplete="current-password" minlength="6" required /></label>
+          <button class="button button-primary" id="auth-submit" type="submit">Se connecter</button>
+          <button class="text-link auth-mode-toggle" id="auth-mode-toggle" type="button">Créer un compte</button>
+        </form>
+        <button class="button auth-retry" id="auth-retry" type="button" hidden>Réessayer la connexion</button>
+        <button class="text-link auth-local-mode" id="auth-local-mode" type="button">Continuer sur cet appareil sans synchronisation</button>
+      </div>
+    </section>
+    <div class="app-shell" id="app-shell" hidden>
       <aside class="sidebar" id="sidebar">
         <a class="brand" href="#dashboard" aria-label="Ideal Cosmetique, accueil">
           <span class="brand-mark">I<span>c</span></span>
@@ -33,7 +55,7 @@
           <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Paramètres</button>
           <div class="profile">
             <div class="avatar avatar-dark">IC</div>
-            <div class="profile-copy"><strong>Équipe boutique</strong><small>Administrateur</small></div>
+            <div class="profile-copy"><strong>Équipe boutique</strong><small id="profile-role">Administrateur</small></div>
             <span class="profile-more">···</span>
           </div>
         </div>
@@ -46,6 +68,8 @@
           <div class="topbar-actions">
             <label class="global-search"><span aria-hidden="true">⌕</span><input id="global-search" type="search" placeholder="Rechercher un produit, client…" aria-label="Recherche globale" /><kbd>⌘ K</kbd></label>
             <button class="icon-button notification-button" aria-label="Alertes de stock" data-action="go-inventory">♧<i></i></button>
+            <span class="sync-status" id="sync-status" aria-live="polite"></span>
+            <button class="icon-button sign-out-button" id="cloud-sign-out" aria-label="Se déconnecter" title="Se déconnecter" data-action="sign-out" hidden>↪</button>
             <div class="avatar avatar-light">IC</div>
           </div>
         </header>
