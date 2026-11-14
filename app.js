@@ -38,9 +38,30 @@ const starterData = () => ({
     { id: 'V-2404', date: `${dateKey(-2)}T14:24:00`, clientId: 'c4', items: [{ productId: 'p2', name: 'Crème hydratante karité', qty: 1, price: 8500 }], total: 8500, payment: 'Wave', status: 'Payée' }
   ]
 });
-let state;
-try { state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || starterData(); } catch { state = starterData(); }
-if (!state.skuCounters || typeof state.skuCounters !== 'object' || Array.isArray(state.skuCounters)) state.skuCounters = {};
+function normalizeState(value) {
+  if (!value || typeof value !== 'object' || !Array.isArray(value.products) || !Array.isArray(value.clients) || !Array.isArray(value.suppliers) || !Array.isArray(value.sales)) {
+    throw new Error('Les données de la boutique sont incomplètes ou invalides.');
+  }
+  const defaults = starterData();
+  return {
+    ...defaults,
+    ...value,
+    shop: { ...defaults.shop, ...(value.shop || {}) },
+    skuCounters: value.skuCounters && typeof value.skuCounters === 'object' && !Array.isArray(value.skuCounters) ? value.skuCounters : {}
+  };
+}
+let state = starterData();
+let legacyLocalState = null;
+try {
+  const localData = localStorage.getItem(STORAGE_KEY);
+  if (localData) {
+    legacyLocalState = normalizeState(JSON.parse(localData));
+    state = legacyLocalState;
+  }
+} catch {
+  state = starterData();
+  legacyLocalState = null;
+}
 let activeView = 'dashboard';
 let searchTerm = '';
 let cart = [];
@@ -49,12 +70,52 @@ let reportDate = localDateKey(new Date());
 const root = document.querySelector('#view-root');
 const dialog = document.querySelector('#app-dialog');
 const dialogContent = document.querySelector('#dialog-content');
+const appShell = document.querySelector('#app-shell');
+const authScreen = document.querySelector('#auth-screen');
+const authMessage = document.querySelector('#auth-message');
+const authForm = document.querySelector('#auth-form');
+const authSubmit = document.querySelector('#auth-submit');
+const authModeToggle = document.querySelector('#auth-mode-toggle');
+const authRetry = document.querySelector('#auth-retry');
+const authLocalMode = document.querySelector('#auth-local-mode');
+const syncStatus = document.querySelector('#sync-status');
+const cloudSignOut = document.querySelector('#cloud-sign-out');
+let supabaseClient = null;
+let currentUser = null;
+let cloudReady = false;
+let localMode = false;
+let authMode = 'signin';
+let loadingUserId = null;
+let cloudSaveQueue = Promise.resolve();
 const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 const money = value => `${new Intl.NumberFormat('fr-FR').format(Number(value) || 0)} F CFA`;
 const shortDate = value => new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(value));
 const shortTime = value => new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 const initials = name => String(name || '?').split(/\s+/).slice(0, 2).map(part => part[0] || '').join('').toUpperCase();
-const save = () => localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function save() {
+  const serialized = JSON.stringify(state);
+  localStorage.setItem(STORAGE_KEY, serialized);
+  if (!cloudReady || !currentUser || !supabaseClient) {
+    legacyLocalState = normalizeState(JSON.parse(serialized));
+    return;
+  }
+  const payload = JSON.parse(serialized);
+  const userId = currentUser.id;
+  setSyncStatus('Synchronisation…');
+  cloudSaveQueue = cloudSaveQueue.then(async () => {
+    const { error } = await supabaseClient.from('store_data').upsert({
+      user_id: userId,
+      data: payload,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+    setSyncStatus('Synchronisé');
+  }).catch(error => {
+    console.error('Échec de la synchronisation Supabase.', error);
+    setSyncStatus('Erreur de synchronisation');
+    toast(`La modification reste sur cet appareil, mais la synchronisation a échoué : ${error.message}`, true);
+  });
+}
 const productById = id => state.products.find(product => product.id === id);
 const clientName = id => state.clients.find(client => client.id === id)?.name || 'Client de passage';
 const stockStatus = product => product.qty === 0 ? ['Rupture', 'status-out'] : product.qty <= product.threshold ? ['Stock bas', 'status-low'] : ['En stock', 'status-ok'];
@@ -87,6 +148,106 @@ function productVisual(product, className) {
   return `<span class="${className}${image ? ' has-photo' : ''}">${image ? `<img src="${esc(image)}" alt="" loading="lazy" />` : categoryIcon(product?.category)}</span>`;
 }
 function toast(message, error = false) { const node = document.createElement('div'); node.className = `toast${error ? ' error' : ''}`; node.textContent = message; document.querySelector('#toast-region').append(node); setTimeout(() => node.remove(), 3000); }
+function setSyncStatus(message) { syncStatus.textContent = message; }
+function showAuth(message, canRetry = false) {
+  authScreen.hidden = false;
+  appShell.hidden = true;
+  authMessage.textContent = message;
+  authForm.hidden = !supabaseClient;
+  authLocalMode.hidden = !!supabaseClient;
+  authRetry.hidden = !canRetry;
+}
+function showApplication() {
+  authScreen.hidden = true;
+  appShell.hidden = false;
+  cloudSignOut.hidden = !currentUser;
+  document.querySelector('#profile-role').textContent = currentUser?.email || (localMode ? 'Mode local' : 'Administrateur');
+  setSyncStatus(currentUser ? 'Synchronisé' : 'Mode local');
+  render();
+}
+function handleSignedOut() {
+  currentUser = null;
+  cloudReady = false;
+  localMode = false;
+  legacyLocalState = null;
+  state = starterData();
+  localStorage.removeItem(STORAGE_KEY);
+  showAuth('Vous êtes déconnecté. Connectez-vous pour charger les données de votre boutique.');
+}
+async function activateUser(user) {
+  if (cloudReady && currentUser?.id === user.id) return;
+  if (loadingUserId === user.id) return;
+  loadingUserId = user.id;
+  currentUser = user;
+  showAuth('Chargement sécurisé des données de la boutique…', true);
+  try {
+    const { data: row, error } = await supabaseClient.from('store_data').select('data').eq('user_id', user.id).maybeSingle();
+    if (error) throw error;
+    if (row) {
+      state = normalizeState(row.data);
+    } else {
+      let migratedState = null;
+      if (legacyLocalState && confirm('Aucune donnée cloud n’existe encore pour ce compte. Importer les données enregistrées sur cet appareil ?')) {
+        migratedState = normalizeState(legacyLocalState);
+      }
+      state = migratedState || starterData();
+      const { error: insertError } = await supabaseClient.from('store_data').upsert({
+        user_id: user.id,
+        data: state,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      if (insertError) throw insertError;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    legacyLocalState = null;
+    cloudReady = true;
+    localMode = false;
+    showApplication();
+  } catch (error) {
+    cloudReady = false;
+    console.error('Impossible de charger les données Supabase.', error);
+    showAuth(`Connexion établie, mais les données cloud sont inaccessibles : ${error.message}`, true);
+  } finally {
+    loadingUserId = null;
+  }
+}
+async function initializeCloud() {
+  const config = window.IDEAL_SUPABASE_CONFIG;
+  if (!config?.url?.trim() || !config?.anonKey?.trim()) {
+    showAuth('Supabase n’est pas encore configuré. Renseignez l’URL du projet et la clé anon dans supabase-config.js, puis rechargez cette page.');
+    return;
+  }
+  if (!window.supabase?.createClient) {
+    showAuth('La bibliothèque Supabase n’a pas pu être chargée. Vérifiez votre connexion Internet puis rechargez la page.');
+    return;
+  }
+  try {
+    supabaseClient = window.supabase.createClient(config.url.trim(), config.anonKey.trim());
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (session?.user) setTimeout(() => { activateUser(session.user); }, 0);
+      else if (event === 'SIGNED_OUT') handleSignedOut();
+      else if (event === 'INITIAL_SESSION') showAuth('Connectez-vous pour charger les données de votre boutique.');
+    });
+    const { data, error } = await supabaseClient.auth.getSession();
+    if (error) throw error;
+    if (data.session?.user) await activateUser(data.session.user);
+    else showAuth('Connectez-vous ou créez un compte pour synchroniser la boutique.');
+  } catch (error) {
+    console.error('Initialisation Supabase impossible.', error);
+    showAuth(`Connexion au service impossible : ${error.message}`, true);
+  }
+}
+async function signOut() {
+  if (!supabaseClient) return;
+  try {
+    await cloudSaveQueue;
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
+    handleSignedOut();
+  } catch (error) {
+    toast(`Déconnexion impossible : ${error.message}`, true);
+  }
+}
 function setView(view) { activeView = view; document.querySelectorAll('.nav-item[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view)); document.querySelector('#breadcrumb-current').textContent = pageNames[view]; render(); document.querySelector('#sidebar').classList.remove('open'); document.querySelector('.mobile-overlay')?.classList.remove('show'); }
 function button(label, action, className = 'button', extra = '') { return `<button class="${className}" data-action="${action}" ${extra}>${label}</button>`; }
 function heading(eyebrow, title, subtitle, actions = '') { return `<div class="page-heading"><div><p class="eyebrow">${eyebrow}</p><h1>${title}</h1><p>${subtitle}</p></div><div class="heading-actions">${actions}</div></div>`; }
@@ -186,9 +347,14 @@ function suppliersPage() {
   return `${heading('APPROVISIONNEMENT', 'Fournisseurs', `${state.suppliers.length} partenaires enregistrés.`, button('＋ Ajouter un fournisseur', 'add-supplier', 'button button-primary'))}<div class="toolbar"><label class="toolbar-search"><span>⌕</span><input data-filter placeholder="Nom, contact, ville…" value="${esc(searchTerm)}" /></label></div><div class="panel table-panel"><div class="table-scroll"><table><thead><tr><th>Fournisseur</th><th>Contact</th><th>Téléphone</th><th>Ville</th><th>Produits liés</th><th></th></tr></thead><tbody>${suppliers.map(supplier => { const count = state.products.filter(product => product.supplier === supplier.name).length; return `<tr><td><div class="client-card"><span class="client-avatar">${esc(initials(supplier.name))}</span><span class="client-info"><strong>${esc(supplier.name)}</strong><small>${esc(supplier.email || 'Aucun e-mail')}</small></span></div></td><td>${esc(supplier.contact || '—')}</td><td>${esc(supplier.phone)}</td><td>${esc(supplier.city || '—')}</td><td>${count} référence${count > 1 ? 's' : ''}</td><td><div class="table-actions"><button class="table-action" title="Modifier" aria-label="Modifier ${esc(supplier.name)}" data-action="edit-supplier" data-id="${supplier.id}">✎</button><button class="table-action" title="Supprimer" aria-label="Supprimer ${esc(supplier.name)}" data-action="delete-supplier" data-id="${supplier.id}">×</button></div></td></tr>`; }).join('') || emptyRow('Aucun fournisseur trouvé.', 6)}</tbody></table></div></div>`;
 }
 function settingsPage() {
+  const cloudConnected = !!currentUser;
+  const dataSubtitle = cloudConnected ? 'Synchronisées avec Supabase' : 'Enregistrées sur cet appareil';
+  const dataNote = cloudConnected
+    ? 'Les ventes, clients, produits et fournisseurs sont synchronisés avec votre compte Supabase. Une sauvegarde JSON reste utile pour garder une copie indépendante.'
+    : 'Les ventes, clients, produits et fournisseurs sont enregistrés dans le stockage local de ce navigateur. Connectez Supabase pour synchroniser ces données sur plusieurs appareils.';
   return `${heading('VOTRE ESPACE', 'Paramètres', 'Personnalisez les informations de votre boutique et gérez vos données.')}
     <div class="settings-layout"><section class="panel"><div class="panel-header"><div><div class="panel-title">Informations de la boutique</div><div class="panel-subtitle">Affichées sur votre espace de gestion</div></div></div><div class="panel-body"><form id="settings-form" class="settings-form"><div class="field full"><label for="shop-name">Nom de la boutique</label><input id="shop-name" name="name" value="${esc(state.shop.name)}" required /></div><div class="field"><label for="shop-city">Ville</label><input id="shop-city" name="city" value="${esc(state.shop.city)}" /></div><div class="field"><label for="shop-phone">Téléphone</label><input id="shop-phone" name="phone" value="${esc(state.shop.phone)}" /></div><div class="field full"><label>Devise</label><input value="Franc CFA (XOF)" disabled /></div><div class="field full">${button('Enregistrer les informations', 'save-settings', 'button button-primary')}</div></form></div></section>
-    <section class="panel"><div class="panel-header"><div><div class="panel-title">Sauvegarde et données</div><div class="panel-subtitle">Vos données restent sur cet appareil</div></div></div><div class="panel-body"><p class="settings-note">Les ventes, clients, produits et fournisseurs sont enregistrés dans le stockage local de ce navigateur. Exportez une sauvegarde régulièrement pour conserver une copie de vos données.</p><div class="heading-actions" style="margin-top:15px">${button('↓ Télécharger la sauvegarde', 'export-backup', 'button button-primary')}${button('↑ Restaurer une sauvegarde', 'import-backup', 'button')}</div><input id="backup-file" type="file" accept="application/json" hidden /><p class="settings-note" style="margin-top:24px">Commencer avec des données de démonstration ou repartir de zéro.</p>${button('Réinitialiser les données', 'reset-data', 'button button-danger')}</div></section></div>`;
+    <section class="panel"><div class="panel-header"><div><div class="panel-title">Sauvegarde et données</div><div class="panel-subtitle">${dataSubtitle}</div></div></div><div class="panel-body"><p class="settings-note">${dataNote}</p><div class="heading-actions" style="margin-top:15px">${button('↓ Télécharger la sauvegarde', 'export-backup', 'button button-primary')}${button('↑ Restaurer une sauvegarde', 'import-backup', 'button')}</div><input id="backup-file" type="file" accept="application/json" hidden /><p class="settings-note" style="margin-top:24px">Commencer avec des données de démonstration ou repartir de zéro.</p>${button('Réinitialiser les données', 'reset-data', 'button button-danger')}</div></section></div>`;
 }
 function render() {
   const pages = { dashboard, products: productsPage, inventory: inventoryPage, pos: posPage, sales: salesPage, reports: reportPage, clients: clientsPage, suppliers: suppliersPage, settings: settingsPage };
@@ -366,6 +532,7 @@ function handleAction(action, id) {
     case 'import-backup': document.querySelector('#backup-file').click(); break;
     case 'reset-data': if (confirm('Réinitialiser la boutique avec les données de démonstration ? Cette action remplace les données enregistrées sur cet appareil.')) { state = starterData(); cart = []; save(); render(); toast('Les données de démonstration sont réinitialisées.'); } break;
     case 'save-settings': document.querySelector('#settings-form').requestSubmit(); break;
+    case 'sign-out': signOut(); break;
     case 'close-dialog': dialog.close(); break;
   }
 }
@@ -402,7 +569,55 @@ document.addEventListener('change', event => {
 document.addEventListener('submit', event => {
   if (event.target.id === 'settings-form') { event.preventDefault(); const values = Object.fromEntries(new FormData(event.target).entries()); state.shop = { ...state.shop, ...values }; save(); render(); toast('Informations de la boutique enregistrées.'); }
 });
+authModeToggle.addEventListener('click', () => {
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  authSubmit.textContent = authMode === 'signin' ? 'Se connecter' : 'Créer mon compte';
+  authModeToggle.textContent = authMode === 'signin' ? 'Créer un compte' : 'J’ai déjà un compte';
+  authForm.querySelector('[name="password"]').autocomplete = authMode === 'signin' ? 'current-password' : 'new-password';
+  authMessage.textContent = '';
+});
+authForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!supabaseClient) return;
+  const values = Object.fromEntries(new FormData(authForm).entries());
+  authSubmit.disabled = true;
+  authMessage.textContent = 'Vérification du compte…';
+  try {
+    if (authMode === 'signup') {
+      const { data, error } = await supabaseClient.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: { emailRedirectTo: `${window.location.origin}${window.location.pathname}` }
+      });
+      if (error) throw error;
+      if (data.session?.user) await activateUser(data.session.user);
+      else {
+        authMode = 'signin';
+        authSubmit.textContent = 'Se connecter';
+        authModeToggle.textContent = 'Créer un compte';
+        authForm.querySelector('[name="password"]').autocomplete = 'current-password';
+        showAuth('Compte créé. Confirmez le lien reçu par e-mail, puis connectez-vous.');
+      }
+    } else {
+      const { data, error } = await supabaseClient.auth.signInWithPassword({ email: values.email, password: values.password });
+      if (error) throw error;
+      if (data.user) await activateUser(data.user);
+    }
+  } catch (error) {
+    showAuth(`Authentification impossible : ${error.message}`);
+  } finally {
+    authSubmit.disabled = false;
+  }
+});
+authRetry.addEventListener('click', () => { if (currentUser) activateUser(currentUser); else initializeCloud(); });
+authLocalMode.addEventListener('click', () => {
+  state = legacyLocalState ? normalizeState(legacyLocalState) : starterData();
+  localMode = true;
+  cloudReady = false;
+  currentUser = null;
+  showApplication();
+});
 document.querySelector('#menu-toggle').addEventListener('click', () => { document.querySelector('#sidebar').classList.toggle('open'); document.querySelector('.mobile-overlay').classList.toggle('show'); });
 const overlay = document.createElement('div'); overlay.className = 'mobile-overlay'; overlay.addEventListener('click', () => { document.querySelector('#sidebar').classList.remove('open'); overlay.classList.remove('show'); }); document.body.append(overlay);
 document.addEventListener('keydown', event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); document.querySelector('#global-search').focus(); } if (event.key === 'Escape') document.querySelector('#sidebar').classList.remove('open'); });
-render();
+initializeCloud();
