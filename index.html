@@ -41,18 +41,18 @@
         <div class="store-label">BOUTIQUE · DAKAR</div>
         <nav class="nav-list" aria-label="Navigation principale">
           <span class="nav-caption">ESPACE DE TRAVAIL</span>
-          <button class="nav-item active" data-view="dashboard"><span class="nav-icon">▦</span>Vue d'ensemble</button>
-          <button class="nav-item" data-view="pos"><span class="nav-icon">＋</span>Point de vente</button>
-          <button class="nav-item" data-view="sales"><span class="nav-icon">↗</span>Ventes <span class="nav-count" id="sales-count">0</span></button>
-          <button class="nav-item" data-view="reports"><span class="nav-icon">▤</span>Rapports</button>
+          <button class="nav-item active" data-view="dashboard"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>Vue d'ensemble</button>
+          <button class="nav-item" data-view="pos"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>Point de vente</button>
+          <button class="nav-item" data-view="sales"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8z" /><path d="M9 8h6M9 12h6M9 16h3" /></svg>Ventes <span class="nav-count" id="sales-count">0</span></button>
+          <button class="nav-item" data-view="reports"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h17" /><path d="m7 15 4-4 3 2 6-7" /></svg>Rapports</button>
           <span class="nav-caption nav-caption-spaced">GESTION</span>
-          <button class="nav-item" data-view="products"><span class="nav-icon">◇</span>Produits</button>
-          <button class="nav-item" data-view="inventory"><span class="nav-icon">▤</span>Stocks <span class="nav-dot"></span></button>
-          <button class="nav-item" data-view="clients"><span class="nav-icon">♧</span>Clients</button>
-          <button class="nav-item" data-view="suppliers"><span class="nav-icon">⇄</span>Fournisseurs</button>
+          <button class="nav-item" data-view="products"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 8 9 5 9-5M3 8v9l9 5 9-5V8M12 13v9" /></svg>Produits</button>
+          <button class="nav-item" data-view="inventory"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 8 9 5 9-5M3 8v9l9 5 9-5V8M12 13v9" /></svg>Stocks <span class="nav-dot"></span></button>
+          <button class="nav-item" data-view="clients"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 20v-1.5a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4V20" /><circle cx="9.5" cy="7" r="3.5" /><path d="M17 11a3.5 3.5 0 1 0-1.4-6.7M17 14.5h1a4 4 0 0 1 4 4V20" /></svg>Clients</button>
+          <button class="nav-item" data-view="suppliers"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z" /><circle cx="7.5" cy="18" r="1.5" /><circle cx="18" cy="18" r="1.5" /></svg>Fournisseurs</button>
         </nav>
         <div class="sidebar-bottom">
-          <button class="nav-item" data-view="settings"><span class="nav-icon">⚙</span>Paramètres</button>
+          <button class="nav-item" data-view="settings"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.6.9l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.6-.9l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-1.9l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.6-.9l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.6.9l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 1.8Z" /></svg>Paramètres</button>
           <div class="profile">
             <div class="avatar avatar-dark">IC</div>
             <div class="profile-copy"><strong>Équipe boutique</strong><small id="profile-role">Administrateur</small></div>
@@ -63,13 +63,13 @@
 
       <main class="main-area">
         <header class="topbar">
-          <button class="mobile-menu icon-button" id="menu-toggle" aria-label="Ouvrir le menu">☰</button>
+          <button class="mobile-menu icon-button" id="menu-toggle" aria-label="Ouvrir le menu"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg></button>
           <div class="breadcrumb"><span>Ideal Cosmetique</span><span class="crumb-sep">/</span><strong id="breadcrumb-current">Vue d'ensemble</strong></div>
           <div class="topbar-actions">
-            <label class="global-search"><span aria-hidden="true">⌕</span><input id="global-search" type="search" placeholder="Rechercher un produit, client…" aria-label="Recherche globale" /><kbd>⌘ K</kbd></label>
-            <button class="icon-button notification-button" aria-label="Alertes de stock" data-action="go-inventory">♧<i></i></button>
+            <label class="global-search"><svg class="ui-icon search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8" /><path d="m16 16 4.5 4.5" /></svg><input id="global-search" type="search" placeholder="Rechercher un produit, client…" aria-label="Recherche globale" /><kbd>Ctrl K</kbd></label>
+            <button class="icon-button notification-button" aria-label="Alertes de stock" data-action="go-inventory"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></svg><i></i></button>
             <span class="sync-status" id="sync-status" aria-live="polite"></span>
-            <button class="icon-button sign-out-button" id="cloud-sign-out" aria-label="Se déconnecter" title="Se déconnecter" data-action="sign-out" hidden>↪</button>
+            <button class="icon-button sign-out-button" id="cloud-sign-out" aria-label="Se déconnecter" title="Se déconnecter" data-action="sign-out" hidden><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3" /><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7" /></svg></button>
             <div class="avatar avatar-light">IC</div>
           </div>
         </header>
