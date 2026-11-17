@@ -131,3 +131,49 @@
 .sync-status:not(:empty)::before{content:'';display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:#75a27a}
 .sync-status:not(:empty){display:inline-flex;align-items:center}
 @media(max-width:760px){.auth-card{padding:27px 22px}.sync-status{display:none!important}.sign-out-button{font-size:16px}}
+
+.ui-icon{display:block;width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav-icon{width:17px;height:17px;font-size:0;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.global-search>.search-icon,.toolbar-search>.search-icon{width:16px;height:16px;flex:none}
+.metric-icon .ui-icon{width:16px;height:16px}
+.quick-icon{display:flex;align-items:center;color:#5a8265}
+.quick-icon .ui-icon{width:17px;height:17px}
+.button>.ui-icon{width:14px;height:14px}
+.text-link>.ui-icon{display:inline-block;width:13px;height:13px;margin-left:4px;vertical-align:-2px}
+.table-action .ui-icon{width:14px;height:14px;margin:auto}
+.pos-product-add .ui-icon{width:15px;height:15px}
+.cart-empty-icon .ui-icon{width:25px;height:25px}
+.dialog-close .ui-icon{width:17px;height:17px}
+.icon-button>.ui-icon{width:18px;height:18px;margin:auto}
+.category-placeholder{font-size:10px;font-weight:700;letter-spacing:.04em}
+.product-image-placeholder{font-size:14px;font-weight:700;letter-spacing:.04em}
+.view-root{perspective:1400px;transform-style:preserve-3d}
+.view-root.view-enter{animation:view-enter .42s cubic-bezier(.2,.7,.25,1) both}
+@keyframes view-enter{from{opacity:0;transform:perspective(1400px) rotateX(-1.2deg) translateY(9px)}to{opacity:1;transform:perspective(1400px) rotateX(0) translateY(0)}}
+.metric-card{transform-style:preserve-3d;box-shadow:0 5px 18px rgba(21,49,39,.045);transition:transform .28s cubic-bezier(.2,.7,.25,1),box-shadow .28s,border-color .2s}
+.metric-card::after{position:absolute;inset:0;content:"";pointer-events:none;background:linear-gradient(135deg,rgba(255,255,255,.62),transparent 42%);opacity:.48;transition:opacity .25s}
+.metric-top,.metric-value,.metric-foot{position:relative;z-index:1;transform:translateZ(8px)}
+.metric-icon{transition:transform .28s cubic-bezier(.2,.7,.25,1),background .2s}
+.metric-card:hover{border-color:#d5e2d6;box-shadow:0 15px 28px rgba(21,49,39,.12);transform:perspective(950px) rotateX(2deg) rotateY(-2deg) translateY(-4px)}
+.metric-card:hover::after{opacity:.82}
+.metric-card:hover .metric-icon{background:#e2eee3;transform:translateZ(20px) rotateY(8deg)}
+.dashboard-grid .panel{transform-style:preserve-3d;transition:transform .28s cubic-bezier(.2,.7,.25,1),box-shadow .28s}
+.dashboard-grid .panel:hover{box-shadow:0 13px 28px rgba(21,49,39,.09);transform:perspective(1200px) rotateX(.6deg) translateY(-2px)}
+.quick-action{transform-style:preserve-3d;transition:transform .24s cubic-bezier(.2,.7,.25,1),box-shadow .24s,border-color .2s}
+.quick-action:hover{box-shadow:0 9px 18px rgba(21,49,39,.08);transform:perspective(700px) rotateX(2deg) rotateY(-2deg) translateY(-3px)}
+.quick-icon{transform:translateZ(8px)}
+.button-primary:hover{box-shadow:0 8px 18px rgba(18,59,50,.2);transform:perspective(600px) rotateX(2deg) translateY(-2px)}
+.nav-item{transition:background .18s,color .18s,transform .2s,box-shadow .2s;transform-style:preserve-3d}
+.nav-item:hover{transform:perspective(600px) rotateY(-1deg) translateX(2px)}
+.nav-item.active{box-shadow:inset 3px 0 var(--orange)}
+.chart-line{stroke-dasharray:600;stroke-dashoffset:600;animation:chart-draw 1.05s .12s ease-out forwards}
+@keyframes chart-draw{to{stroke-dashoffset:0}}
+@media(prefers-reduced-motion:reduce){
+  .view-root.view-enter{animation:none}
+  .metric-card:hover,.dashboard-grid .panel:hover,.quick-action:hover,.button-primary:hover,.nav-item:hover,.pos-product:hover{transform:none!important}
+  .chart-line{animation:none;stroke-dasharray:none;stroke-dashoffset:0}
+}
+@media(hover:none){
+  .metric-card:hover{transform:none;box-shadow:0 5px 18px rgba(21,49,39,.045)}
+  .dashboard-grid .panel:hover,.quick-action:hover,.button-primary:hover,.nav-item:hover,.pos-product:hover{transform:none}
+}
